@@ -1,5 +1,6 @@
 package com.jonathandarwin.addcalendarevent
 
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
@@ -18,15 +19,21 @@ import java.util.jar.Manifest
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding : ActivityMainBinding
+    private val preference by lazy {
+        getSharedPreferences(SHARED_PREF_NAME, Context.MODE_PRIVATE)
+    }
+
     private val WRITE_CALENDAR_REQUEST = 123
+    private val SHARED_PREF_NAME = "AddEventCalendar"
+    private val SHARED_PREF_COLUMN = "eventIdList"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
 
-        binding.etDatetime.setText("2020-10-06 23:00")
-        binding.etEventTitle.setText("Testing Joe 3")
-        binding.etEventDescription.setText("Ini Testing Joe 3")
+        binding.etDatetime.setText(getCurrentDateTime())
+        binding.etEventTitle.setText("Sample Title")
+        binding.etEventDescription.setText("Sample Description")
 
         binding.btnSave.setOnClickListener {
             val message = validateInput()
@@ -35,6 +42,17 @@ class MainActivity : AppCompatActivity() {
                 ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.WRITE_CALENDAR),
                     WRITE_CALENDAR_REQUEST)
             }
+        }
+
+        binding.btnDeleteAll.setOnClickListener {
+            val eventIdList = preference.getString(SHARED_PREF_COLUMN, "") ?: ""
+            eventIdList.split(";").map {
+                if(!it.isNullOrEmpty()){
+                    val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, it.toLong())
+                    contentResolver.delete(uri, null, null)
+                }
+            }
+            Toast.makeText(this, "Delete Success", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -50,6 +68,12 @@ class MainActivity : AppCompatActivity() {
         val date = input.parse(raw)
 
         return date.time
+    }
+
+    private fun getCurrentDateTime() : String {
+        val calendar = Calendar.getInstance()
+        val output = SimpleDateFormat("yyyy-MM-dd HH:mm")
+        return output.format(calendar.time)
     }
 
     override fun onRequestPermissionsResult(
@@ -81,7 +105,9 @@ class MainActivity : AppCompatActivity() {
         values.put(CalendarContract.Events.EVENT_TIMEZONE, timezone.id)
 
         values.put(CalendarContract.Events.CALENDAR_ID, getCalendarId())
-        contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
+        var uri = contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
+        val id = uri?.lastPathSegment ?: ""
+        saveEventId(id)
 
         Toast.makeText(this, "Event saved.", Toast.LENGTH_SHORT).show()
     }
@@ -122,5 +148,14 @@ class MainActivity : AppCompatActivity() {
             }
         }
         return null
+    }
+
+    private fun saveEventId(id : String){
+        var eventIdList = preference.getString(SHARED_PREF_COLUMN, "")
+        eventIdList += "${id};"
+        with(preference.edit()){
+            putString(SHARED_PREF_COLUMN, eventIdList)
+            commit()
+        }
     }
 }
