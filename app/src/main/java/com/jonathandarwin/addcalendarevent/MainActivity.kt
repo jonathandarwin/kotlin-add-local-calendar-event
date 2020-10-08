@@ -39,7 +39,8 @@ class MainActivity : AppCompatActivity() {
             val message = validateInput()
             if(message != "") Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
             else{
-                ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.WRITE_CALENDAR),
+                ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.WRITE_CALENDAR,
+                    android.Manifest.permission.READ_CALENDAR),
                     WRITE_CALENDAR_REQUEST)
             }
         }
